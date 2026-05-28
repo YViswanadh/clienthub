@@ -1,55 +1,25 @@
-/** @type {import('tailwindcss').Config} */
 export default {
-  content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-  ],
+  content: ['./index.html', './src/**/*.{js,jsx}'],
   theme: {
     extend: {
+      fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
       colors: {
-        primary: {
-          DEFAULT: '#534AB7',
-          light: '#EEEDFE',
-          foreground: '#FFFFFF',
-        },
-        brand: {
-          purple: '#534AB7',
-          purpleLight: '#EEEDFE',
-        },
-        border: "hsl(var(--border, 240 5.9% 90%))",
-        input: "hsl(var(--input, 240 5.9% 90%))",
-        ring: "hsl(var(--ring, 240 5% 64.9%))",
-        background: "hsl(var(--background, 0 0% 100%))",
-        foreground: "hsl(var(--foreground, 240 10% 3.9%))",
-        destructive: {
-          DEFAULT: "hsl(var(--destructive, 0 84.2% 60.2%))",
-          foreground: "hsl(var(--destructive-foreground, 0 0% 98%))",
-        },
-        muted: {
-          DEFAULT: "hsl(var(--muted, 240 4.8% 95.9%))",
-          foreground: "hsl(var(--muted-foreground, 240 3.8% 46.1%))",
-        },
-        accent: {
-          DEFAULT: "hsl(var(--accent, 240 4.8% 95.9%))",
-          foreground: "hsl(var(--accent-foreground, 240 5.9% 10%))",
-        },
-        popover: {
-          DEFAULT: "hsl(var(--popover, 0 0% 100%))",
-          foreground: "hsl(var(--popover-foreground, 240 10% 3.9%))",
-        },
-        card: {
-          DEFAULT: "hsl(var(--card, 0 0% 100%))",
-          foreground: "hsl(var(--card-foreground, 240 10% 3.9%))",
-        },
+        void: '#0C0C16',
+        electric: '#5B4EF5',
+        amber: { DEFAULT: '#F0A030', light: '#FEF3DC' },
+        mint: { DEFAULT: '#06C49A', light: '#E0FAF4' },
+        ember: { DEFAULT: '#E85454', light: '#FEECEC' },
+        bgbase: '#F7F7FB',
       },
-      fontFamily: {
-        sans: ["Inter", "sans-serif"],
+      borderRadius: { DEFAULT: '8px', md: '8px', lg: '12px', xl: '16px' },
+      boxShadow: {
+        xs: '0 1px 2px rgba(14,14,26,0.04)',
+        sm: '0 1px 4px rgba(14,14,26,0.07)',
+        md: '0 4px 16px rgba(14,14,26,0.08)',
+        electric: '0 4px 20px rgba(91,78,245,0.25)',
       },
-      borderRadius: {
-        lg: "var(--radius, 12px)",
-        md: "calc(var(--radius, 12px) - 2px)",
-        sm: "calc(var(--radius, 12px) - 4px)",
-      },
+      animation: { fadeUp: 'fadeUp 0.25s ease forwards' },
+      keyframes: { fadeUp: { from: { opacity: '0', transform: 'translateY(8px)' }, to: { opacity: '1', transform: 'translateY(0)' } } },
     },
   },
   plugins: [],

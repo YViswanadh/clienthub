@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useProjects, useApproveFile } from '../hooks/useProjects';
 import { useInvoices, useCheckoutInvoice } from '../hooks/useInvoices';
 import useAuth from '../hooks/useAuth';
@@ -6,21 +6,17 @@ import Navbar from '../components/Navbar';
 import PhaseTimeline from '../components/PhaseTimeline';
 import CommentThread from '../components/CommentThread';
 import {
-  ShieldAlert,
-  Files,
-  MessageSquare,
+  AlertCircle,
+  Download,
+  FolderKanban,
+  FileText,
   Check,
   X,
-  Download,
-  AlertTriangle,
-  FolderKanban,
   ExternalLink
 } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/card';
-import { Badge } from '../components/ui/badge';
+import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../components/ui/dialog';
-import { Input } from '../components/ui/input';
 
 export default function ClientPortal() {
   const { user } = useAuth();
@@ -33,7 +29,7 @@ export default function ClientPortal() {
   const project = projects[0];
 
   // Active Unpaid Invoice for the banner
-  const unpaidInvoice = invoices.find((inv) => inv.status?.toLowerCase() === 'unpaid');
+  const unpaidInvoice = invoices.find((inv) => inv.status?.toLowerCase() !== 'paid');
 
   // Mutations
   const checkoutMutation = useCheckoutInvoice();
@@ -44,14 +40,28 @@ export default function ClientPortal() {
   const [selectedFileId, setSelectedFileId] = useState(null);
   const [feedback, setFeedback] = useState('');
 
+  // Circular progress SVG animation tracking
+  const [progressOffset, setProgressOffset] = useState(188.5);
+
   const getProgress = (phases = []) => {
     if (phases.length === 0) return 0;
     const doneCount = phases.filter((p) => p.done).length;
     return Math.round((doneCount / phases.length) * 100);
   };
 
+  useEffect(() => {
+    if (project) {
+      const pct = getProgress(project.phases);
+      const targetOffset = 188.5 * (1 - pct / 100);
+      const timer = setTimeout(() => {
+        setProgressOffset(targetOffset);
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [project]);
+
   const handleApprove = (fileId) => {
-    approveFileMutation.mutate({ fileId, status: 'approved' });
+    approveFileMutation.mutate({ fileId, approved: true });
   };
 
   const handleRequestChangesClick = (fileId) => {
@@ -64,25 +74,15 @@ export default function ClientPortal() {
     e.preventDefault();
     if (!feedback.trim()) return;
 
+    // Call approveFileMutation to mark as changes requested (or reject/unapprove)
     approveFileMutation.mutate(
-      { fileId: selectedFileId, status: 'changes_requested' },
+      { fileId: selectedFileId, approved: false, feedback },
       {
         onSuccess: () => {
           setRejectModalOpen(false);
         },
       }
     );
-  };
-
-  const getFileBadge = (status) => {
-    switch (status) {
-      case 'approved':
-        return <Badge className="bg-[#DCFCE7] text-[#15803D] border-none hover:bg-[#DCFCE7]">Approved</Badge>;
-      case 'changes_requested':
-        return <Badge className="bg-[#FEF3C7] text-[#D97706] border-none hover:bg-[#FEF3C7]">Changes Requested</Badge>;
-      default:
-        return <Badge className="bg-[#F3F4F6] text-[#4B5563] border-none hover:bg-[#F3F4F6]">Pending Review</Badge>;
-    }
   };
 
   const formatDate = (dateStr) => {
@@ -94,236 +94,303 @@ export default function ClientPortal() {
     }).format(new Date(dateStr));
   };
 
+  const formatFileSize = (bytes) => {
+    if (!bytes) return 'N/A';
+    const kb = bytes / 1024;
+    if (kb < 1024) return `${kb.toFixed(1)} KB`;
+    return `${(kb / 1024).toFixed(1)} MB`;
+  };
+
   if (loadingProjects || loadingInvoices) {
     return (
       <div className="flex h-screen items-center justify-center bg-[#F8F8F8]">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-t-transparent" style={{ borderColor: 'var(--brand-color, var(--electric))' }}></div>
       </div>
     );
   }
 
+  const pct = project ? getProgress(project.phases) : 0;
+
   return (
-    <div className="min-h-screen bg-[#F8F8F8] pb-12">
+    <div className="min-h-screen bg-[#F7F7FB] pb-12">
       <Navbar />
 
-      <div className="max-w-5xl mx-auto px-4 mt-6 space-y-6">
-        
-        {/* Unpaid Invoice Amber Alert Banner */}
-        {unpaidInvoice && (
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-[#FFFBEB] border border-[#FDE68A] p-4 rounded-xl shadow-sm text-sm text-[#92400E] animate-fadeIn">
-            <div className="flex items-center gap-3">
-              <ShieldAlert className="h-6 w-6 text-[#D97706] shrink-0" />
-              <div className="space-y-0.5">
-                <p className="font-bold">Outstanding Invoice Due</p>
-                <p className="text-xs text-[#B45309]">
-                  Invoice {unpaidInvoice.invoiceNumber} for{' '}
-                  <span className="font-semibold">${unpaidInvoice.amount?.toLocaleString()}</span> is due on{' '}
-                  {formatDate(unpaidInvoice.dueDate)}.
-                </p>
-              </div>
-            </div>
-
-            <Button
-              onClick={() => checkoutMutation.mutate(unpaidInvoice.id || unpaidInvoice._id)}
-              disabled={checkoutMutation.isPending}
-              className="bg-[#D97706] hover:bg-[#B45309] text-white rounded-lg text-xs font-bold shrink-0 shadow-sm"
-            >
-              {checkoutMutation.isPending ? (
-                <span className="flex items-center gap-1">
-                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
-                  Processing...
-                </span>
-              ) : (
-                <span className="flex items-center gap-1">
-                  Pay Now
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </span>
-              )}
-            </Button>
+      {/* Top Banner (Payment Due) */}
+      {unpaidInvoice && (
+        <div
+          className="w-full flex items-center justify-between px-6 py-3 text-xs"
+          style={{
+            background: 'linear-gradient(135deg, #FEF3DC 0%, #FDE8B4 100%)',
+            borderBottom: '1px solid rgba(240, 160, 48, 0.3)',
+            color: '#92400E',
+            fontSize: '13px',
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4.5 w-4.5 text-[#F0A030] shrink-0" />
+            <span>
+              Payment due — <strong>${unpaidInvoice.total?.toFixed(2)}</strong> by{' '}
+              {formatDate(unpaidInvoice.dueDate)}
+            </span>
           </div>
-        )}
+          <button
+            onClick={() => checkoutMutation.mutate(unpaidInvoice.id || unpaidInvoice._id)}
+            disabled={checkoutMutation.isPending}
+            className="btn-accent text-[11px] font-semibold py-1 px-3"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+          >
+            {checkoutMutation.isPending ? 'Redirecting...' : 'Pay now →'}
+          </button>
+        </div>
+      )}
 
+      <div className="max-w-5xl mx-auto px-4 mt-6 space-y-6">
         {!project ? (
           <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-xl border border-gray-100 shadow-sm p-6">
             <FolderKanban className="h-12 w-12 text-gray-200 mb-2" />
-            <h2 className="text-lg font-bold text-[#111111]">No Active Projects</h2>
-            <p className="text-xs text-[#6B7280]">There are no active workspace timelines shared with your account yet.</p>
+            <h2 className="text-lg font-bold text-[#111111] m-0">No Active Projects</h2>
+            <p className="text-xs text-[#6B7280] mt-1 m-0">There are no active workspace timelines shared with your account yet.</p>
           </div>
         ) : (
-          /* Client Portal Content */
           <div className="space-y-6">
-            
-            {/* Project Overview Card */}
-            <Card className="border border-gray-100 bg-white rounded-xl shadow-sm overflow-hidden">
-              <CardHeader className="p-5 pb-2 bg-gray-50/50">
-                <div className="flex justify-between items-center">
-                  <CardTitle className="text-lg font-bold text-[#111111]">{project.name}</CardTitle>
-                  <Badge className="bg-[#DCFCE7] text-[#15803D] hover:bg-[#DCFCE7] border-none">
+            {/* Project Hero Card */}
+            <Card
+              className="card overflow-hidden"
+              style={{
+                padding: '28px',
+                borderRadius: 'var(--radius-xl)',
+                border: '1px solid var(--border-light)',
+                backgroundColor: '#ffffff',
+                boxShadow: 'var(--shadow-sm)',
+              }}
+            >
+              <div className="flex items-start justify-between mb-6">
+                <div>
+                  <h1 className="text-xl font-semibold text-[#0E0E1A] tracking-tight m-0">{project.title}</h1>
+                  <p className="text-sm text-slate-500 mt-1 m-0">Dynamic Agency Delivery Workspace</p>
+                  <span className="badge-active mt-2.5 inline-block">
                     Project Pipeline Active
-                  </Badge>
+                  </span>
                 </div>
-                <CardDescription className="text-xs text-[#6B7280]">
-                  Overall completion rate: <span className="font-semibold text-primary">{getProgress(project.phases)}%</span>
-                </CardDescription>
-              </CardHeader>
-              
-              <CardContent className="p-6">
-                <div className="border border-gray-100 rounded-xl p-5 bg-[#F8F8F8]/40">
-                  <PhaseTimeline phases={project.phases} compact={false} />
+
+                {/* Circular Progress Ring SVG */}
+                <div className="relative h-[72px] w-[72px] shrink-0">
+                  <svg className="h-full w-full -rotate-90">
+                    <circle
+                      cx="36"
+                      cy="36"
+                      r="30"
+                      fill="transparent"
+                      stroke="var(--border-light)"
+                      strokeWidth="5"
+                    />
+                    <circle
+                      cx="36"
+                      cy="36"
+                      r="30"
+                      fill="transparent"
+                      stroke="var(--brand-color, var(--electric))"
+                      strokeWidth="5"
+                      strokeDasharray="188.5"
+                      strokeDashoffset={progressOffset}
+                      strokeLinecap="round"
+                      style={{ transition: 'stroke-dashoffset 1s ease-in-out' }}
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center flex-col">
+                    <span className="text-[18px] font-semibold text-[#0E0E1A]" style={{ letterSpacing: '-0.02em' }}>
+                      {pct}%
+                    </span>
+                  </div>
                 </div>
-              </CardContent>
+              </div>
+
+              {/* Phase Timeline Component */}
+              <div className="border-t pt-6" style={{ borderColor: 'var(--border-light)' }}>
+                <PhaseTimeline phases={project.phases} compact={false} />
+              </div>
             </Card>
 
-            {/* Split View Columns: Assets & Discussions */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              
-              {/* Left Column: Shared Assets to Approve */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-base font-bold text-[#111111]">
-                  <Files className="h-4.5 w-4.5 text-primary" />
-                  <span>Deliverables Review Hub</span>
+            {/* Split Deliverables Grid & Discussion Column */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Deliverables Column */}
+              <div className="md:col-span-2 space-y-4">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-[#0E0E1A] m-0">Deliverables</h3>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">
+                    {project.files?.length || 0}
+                  </span>
                 </div>
 
                 {!project.files || project.files.length === 0 ? (
-                  <Card className="border border-gray-100 bg-white rounded-xl p-6 text-center text-xs text-[#6B7280]">
+                  <div className="p-8 text-center text-xs text-[#94A3C8] bg-white border rounded-xl" style={{ borderColor: 'var(--border-light)' }}>
                     No files shared yet for review.
-                  </Card>
+                  </div>
                 ) : (
-                  <div className="space-y-4">
-                    {project.files.map((file, fIdx) => (
-                      <Card
-                        key={file.id || file._id || fIdx}
-                        className="border border-gray-100 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col justify-between"
-                      >
-                        <CardHeader className="p-4 pb-2">
-                          <div className="flex justify-between items-center">
-                            <span className="text-[10px] text-[#6B7280] font-semibold">
-                              Uploaded: {formatDate(file.uploadedAt || file.date)}
-                            </span>
-                            {getFileBadge(file.status)}
-                          </div>
-                          <CardTitle className="text-sm font-bold text-[#111111] truncate mt-1">
-                            {file.name}
-                          </CardTitle>
-                        </CardHeader>
-
-                        {/* Thumbnail View (If Image) */}
-                        <CardContent className="p-4 pt-0">
-                          {file.url?.match(/\.(jpeg|jpg|gif|png)/i) || file.url?.startsWith('blob:') ? (
-                            <div className="h-32 w-full rounded-lg overflow-hidden border border-gray-100 bg-gray-50 flex items-center justify-center">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {project.files.map((file) => {
+                      const isImg = file.filename?.match(/\.(jpeg|jpg|gif|png)/i) || file.cloudinaryUrl?.match(/\.(jpeg|jpg|gif|png)/i);
+                      return (
+                        <div
+                          key={file._id || file.id}
+                          className="group bg-white border overflow-hidden flex flex-col justify-between transition-all duration-150 hover:-translate-y-0.5"
+                          style={{
+                            borderColor: 'var(--border-light)',
+                            borderRadius: 'var(--radius-lg)',
+                            boxShadow: 'var(--shadow-xs)',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.boxShadow = 'var(--shadow-xs)';
+                          }}
+                        >
+                          {/* File Preview */}
+                          <div className="relative h-[100px] w-full shrink-0 border-b overflow-hidden" style={{ borderColor: 'var(--border-light)' }}>
+                            {isImg ? (
                               <img
-                                src={file.url}
-                                alt={file.name}
+                                src={file.cloudinaryUrl}
+                                alt={file.filename}
                                 className="h-full w-full object-cover"
                               />
-                            </div>
-                          ) : (
-                            <div className="h-20 w-full rounded-lg bg-gray-50 flex items-center justify-center border border-gray-100 text-[#6B7280] text-xs font-semibold gap-1.5">
-                              <Files className="h-5 w-5" />
-                              <span>Document deliverables</span>
-                            </div>
-                          )}
-                        </CardContent>
+                            ) : (
+                              <div className="h-full w-full flex items-center justify-center" style={{ backgroundColor: 'var(--bg-base)' }}>
+                                <FileText className="h-8 w-8 text-slate-400" />
+                              </div>
+                            )}
 
-                        {/* Actions Footer */}
-                        <CardFooter className="p-3 bg-gray-50/50 border-t border-gray-50 flex items-center justify-between gap-2">
-                          <Button variant="ghost" size="sm" asChild className="text-[#6B7280] hover:text-[#111111] text-xs gap-1">
-                            <a href={file.url} target="_blank" rel="noreferrer">
-                              <Download className="h-3.5 w-3.5" />
-                              Download
-                            </a>
-                          </Button>
-
-                          {file.status === 'pending' && (
-                            <div className="flex items-center gap-1.5">
-                              <Button
-                                size="sm"
-                                onClick={() => handleRequestChangesClick(file.id || file._id || fIdx)}
-                                className="bg-white border border-[#FEE2E2] hover:bg-[#FEF2F2] text-[#EF4444] rounded-lg text-xs py-1 px-3"
-                              >
-                                <X className="h-3.5 w-3.5 mr-1" />
-                                Changes
-                              </Button>
-                              <Button
-                                size="sm"
-                                onClick={() => handleApprove(file.id || file._id || fIdx)}
-                                className="bg-primary hover:bg-primary/95 text-white rounded-lg text-xs py-1 px-3"
-                              >
-                                <Check className="h-3.5 w-3.5 mr-1" />
-                                Approve
-                              </Button>
+                            {/* Status Chip */}
+                            <div className="absolute top-2 right-2">
+                              <span className={file.approved ? 'badge-active' : 'badge-review'}>
+                                {file.approved ? 'Approved' : 'Awaiting review'}
+                              </span>
                             </div>
-                          )}
-                        </CardFooter>
-                      </Card>
-                    ))}
+                          </div>
+
+                          {/* Body details */}
+                          <div className="p-3 flex-1 flex flex-col justify-between">
+                            <div className="space-y-0.5">
+                              <p className="text-xs font-semibold text-[#0E0E1A] truncate max-w-full m-0" title={file.filename}>
+                                {file.filename}
+                              </p>
+                              <span className="text-[10px] text-[#94A3B8] block">
+                                {formatFileSize(file.size)}
+                              </span>
+                            </div>
+
+                            {/* Bottom row actions */}
+                            <div className="flex items-center justify-between gap-1.5 mt-3 pt-2 border-t" style={{ borderColor: 'var(--border-light)' }}>
+                              <a
+                                href={file.cloudinaryUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex h-7 w-7 items-center justify-center hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded-full cursor-pointer no-underline"
+                                title="Download File"
+                              >
+                                <Download className="h-4 w-4" />
+                              </a>
+
+                              {file.approved ? (
+                                <div className="flex items-center gap-1 text-xs font-semibold text-[#047857]">
+                                  <Check className="h-4 w-4" style={{ strokeWidth: 3 }} />
+                                  <span>Approved</span>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={() => handleRequestChangesClick(file._id || file.id)}
+                                    className="btn-ghost text-[10px] font-semibold py-1 px-2.5"
+                                  >
+                                    Changes
+                                  </button>
+                                  <button
+                                    onClick={() => handleApprove(file._id || file.id)}
+                                    className="text-[10px] font-semibold py-1 px-2.5 rounded-md border-none cursor-pointer hover:opacity-90 active:scale-95 transition-all"
+                                    style={{
+                                      backgroundColor: 'var(--mint-light)',
+                                      color: '#047857',
+                                    }}
+                                  >
+                                    Approve
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
 
-              {/* Right Column: Discussions */}
+              {/* Discussions Column */}
               <div className="space-y-4">
-                <div className="flex items-center gap-2 text-base font-bold text-[#111111]">
-                  <MessageSquare className="h-4.5 w-4.5 text-primary" />
-                  <span>Real-time Chat Portal</span>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-[#0E0E1A] m-0">Discussion</h3>
                 </div>
 
                 <CommentThread
-                  projectId={project.id || project._id}
+                  projectId={project._id || project.id}
                   initialComments={project.comments || []}
                 />
               </div>
-
             </div>
-
           </div>
         )}
       </div>
 
       {/* Changes Request Feedback Modal */}
       <Dialog open={rejectModalOpen} onOpenChange={setRejectModalOpen}>
-        <DialogContent className="sm:max-w-md p-6">
+        <DialogContent className="sm:max-w-md p-6" style={{ borderRadius: 'var(--radius-lg)' }}>
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold text-[#111111]">Request File Changes</DialogTitle>
-            <DialogDescription className="text-xs text-[#6B7280]">
+            <DialogTitle className="text-base font-bold text-[#0E0E1A] m-0">Request adjustments</DialogTitle>
+            <DialogDescription className="text-xs text-[#6B7280] mt-1">
               Describe the adjustments or feedback needed for this deliverable
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleRequestChangesSubmit} className="space-y-4 mt-2">
             <div className="space-y-1.5">
-              <label htmlFor="feedback_inp" className="text-xs font-semibold text-[#6B7280]">Adjustments Feedback</label>
+              <label htmlFor="feedback_inp" className="text-xs font-semibold text-slate-500">Adjustment notes</label>
               <textarea
                 id="feedback_inp"
                 required
                 rows={4}
                 value={feedback}
                 onChange={(e) => setFeedback(e.target.value)}
-                placeholder="e.g. Please modify the primary fonts to Inter and increase the hero padding..."
-                className="w-full p-3 rounded-lg border border-gray-200 focus:border-primary text-sm font-sans focus:outline-none"
+                placeholder="e.g. Please modify the primary color to Inter and increase the hero padding..."
+                className="w-full p-3 rounded-lg border outline-none text-xs font-sans focus:border-slate-500"
+                style={{
+                  borderColor: 'var(--border)',
+                  backgroundColor: '#ffffff',
+                  color: 'var(--text-primary)',
+                }}
               />
             </div>
 
-            <DialogFooter className="pt-4 border-t border-gray-100 flex items-center justify-end gap-2">
-              <Button
+            <DialogFooter className="pt-4 border-t flex items-center justify-end gap-2" style={{ borderColor: 'var(--border-light)' }}>
+              <button
                 type="button"
-                variant="ghost"
                 onClick={() => setRejectModalOpen(false)}
-                className="rounded-lg text-xs"
+                className="btn-ghost text-xs"
               >
                 Cancel
-              </Button>
-              <Button
+              </button>
+              <button
                 type="submit"
-                className="bg-[#EF4444] hover:bg-[#DC2626] text-white rounded-lg text-xs px-6"
+                className="text-xs font-semibold py-2 px-5 rounded-md border-none cursor-pointer hover:opacity-90 transition-all text-white"
+                style={{
+                  backgroundColor: 'var(--ember)',
+                }}
               >
                 Submit Request
-              </Button>
+              </button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
-
     </div>
   );
 }
