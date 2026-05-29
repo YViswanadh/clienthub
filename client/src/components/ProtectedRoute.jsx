@@ -1,4 +1,4 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
 
 export default function ProtectedRoute({ children, requireRole }) {
@@ -6,18 +6,17 @@ export default function ProtectedRoute({ children, requireRole }) {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-[#F8F8F8]">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+      <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-base)' }}>
+        <div style={{ width: 32, height: 32, borderRadius: '50%', border: '3px solid var(--electric)', borderTopColor: 'transparent', animation: 'spin 0.7s linear infinite' }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
 
-  // Redirect to login if not authenticated
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  // Enforce role guards if requireRole is specified
   if (requireRole === 'agency' && !isAgency) {
     return <Navigate to="/portal" replace />;
   }
@@ -26,5 +25,6 @@ export default function ProtectedRoute({ children, requireRole }) {
     return <Navigate to="/dashboard" replace />;
   }
 
-  return children;
+  // Support both layout route usage (no children, uses <Outlet>) and direct children
+  return children ?? <Outlet />;
 }

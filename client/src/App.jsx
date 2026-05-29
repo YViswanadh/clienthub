@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import useAuth from './hooks/useAuth';
 import ProtectedRoute from './components/ProtectedRoute';
 import BrandWrapper from './components/BrandWrapper';
+import { AgencyLayout, ClientLayout } from './components/AppLayout';
 
 // Pages
 import Login from './pages/Login';
@@ -17,24 +18,16 @@ function RootRedirect() {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-[#F8F8F8]">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+      <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-base)' }}>
+        <div style={{ width: 32, height: 32, borderRadius: '50%', border: '3px solid var(--electric)', borderTopColor: 'transparent', animation: 'spin 0.7s linear infinite' }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
 
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (isAgency) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  if (isClient) {
-    return <Navigate to="/portal" replace />;
-  }
-
+  if (!user) return <Navigate to="/login" replace />;
+  if (isAgency) return <Navigate to="/dashboard" replace />;
+  if (isClient) return <Navigate to="/portal" replace />;
   return <Navigate to="/login" replace />;
 }
 
@@ -44,58 +37,32 @@ function App() {
       <Routes>
         <Route path="/" element={<RootRedirect />} />
         <Route path="/login" element={<Login />} />
-        
-        {/* Agency Routes */}
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute requireRole="agency">
-              <Dashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/projects"
-          element={
-            <ProtectedRoute requireRole="agency">
-              <Projects />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/projects/:id"
-          element={
-            <ProtectedRoute requireRole="agency">
-              <ProjectDetail />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/invoices"
-          element={
-            <ProtectedRoute requireRole="agency">
-              <Invoices />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/settings"
-          element={
-            <ProtectedRoute requireRole="agency">
-              <Settings />
-            </ProtectedRoute>
-          }
-        />
 
-        {/* Client Routes */}
+        {/* ── Agency routes wrapped in AgencyLayout ── */}
         <Route
-          path="/portal"
+          element={
+            <ProtectedRoute requireRole="agency">
+              <AgencyLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/projects" element={<Projects />} />
+          <Route path="/projects/:id" element={<ProjectDetail />} />
+          <Route path="/invoices" element={<Invoices />} />
+          <Route path="/settings" element={<Settings />} />
+        </Route>
+
+        {/* ── Client routes wrapped in ClientLayout ── */}
+        <Route
           element={
             <ProtectedRoute requireRole="client">
-              <ClientPortal />
+              <ClientLayout />
             </ProtectedRoute>
           }
-        />
+        >
+          <Route path="/portal" element={<ClientPortal />} />
+        </Route>
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />

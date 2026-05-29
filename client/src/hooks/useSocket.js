@@ -9,7 +9,7 @@ export default function useSocket() {
 
   useEffect(() => {
     const token = getToken();
-    if (!token) {
+    if (!token || token === 'demo-token') {
       setSocket(null);
       return;
     }
