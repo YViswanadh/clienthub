@@ -128,6 +128,16 @@ export default function Navbar({ onToggleMobile }) {
           )}
         </div>
 
+        {/* Mail Icon Button */}
+        <button 
+          className="text-on-surface-variant hover:text-primary transition-colors cursor-pointer p-1.5 flex items-center justify-center rounded hover:bg-surface-container-low"
+          aria-label="View messages"
+        >
+          <span className="material-symbols-outlined">
+            mail
+          </span>
+        </button>
+
         <div className="h-8 w-px bg-outline-variant mx-1" />
 
         {/* User profile avatar / initials */}
