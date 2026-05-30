@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import useAuth from '../hooks/useAuth';
 import useSocket from '../hooks/useSocket';
 import axios from '../lib/axios';
+import Badge from './ui/badge';
 
 export default function Navbar({ onToggleMobile }) {
   const { user, logout, isAgency } = useAuth();
@@ -13,6 +14,7 @@ export default function Navbar({ onToggleMobile }) {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
 
   const { data: agencyData } = useQuery({
     queryKey: ['agency'],
@@ -129,16 +131,40 @@ export default function Navbar({ onToggleMobile }) {
         <div className="h-8 w-px bg-outline-variant mx-1" />
 
         {/* User profile avatar / initials */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 relative">
           <div className="hidden lg:flex flex-col text-right">
             <span className="text-sm font-semibold text-primary">{user?.name || 'User'}</span>
             <span className="text-[11px] text-on-surface-variant capitalize">{user?.role || 'Guest'}</span>
           </div>
 
           {/* Avatar Profile Frame */}
-          <div className="w-9 h-9 rounded-full bg-surface-container-highest border border-outline-variant overflow-hidden flex items-center justify-center font-bold text-sm text-primary select-none cursor-pointer">
+          <div 
+            onClick={() => { setShowProfileDropdown(!showProfileDropdown); setShowNotifications(false); }}
+            className="w-9 h-9 rounded-full bg-surface-container-highest border border-outline-variant overflow-hidden flex items-center justify-center font-bold text-sm text-primary select-none cursor-pointer hover:bg-surface-container transition-colors"
+          >
             {initials}
           </div>
+
+          {/* User Profile Dropdown Popup (Planar layering: border, no shadow) */}
+          {showProfileDropdown && (
+            <div className="absolute right-0 top-full mt-3 w-64 bg-surface border border-outline-variant rounded-DEFAULT z-50 py-4 px-6 flex flex-col space-y-4">
+              <div className="border-b border-outline-variant pb-3 flex flex-col items-center text-center">
+                <div className="w-12 h-12 rounded-full bg-surface-container-highest border border-outline-variant flex items-center justify-center font-bold text-base text-primary select-none mb-2">
+                  {initials}
+                </div>
+                <h4 className="font-semibold text-primary text-sm">{user?.name || 'User'}</h4>
+                <p className="text-[11px] text-on-surface-variant font-mono truncate w-full">{user?.email || 'user@company.com'}</p>
+                <Badge variant="in-progress" className="mt-2 text-[10px]">{user?.role || 'Guest'}</Badge>
+              </div>
+              <button
+                onClick={logout}
+                className="w-full flex items-center justify-center gap-3 py-2 bg-transparent border border-error-container hover:bg-error-container/20 text-error font-label-md text-label-md rounded-DEFAULT cursor-pointer transition-colors"
+              >
+                <span className="material-symbols-outlined text-[18px]">logout</span>
+                <span>Sign Out</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>

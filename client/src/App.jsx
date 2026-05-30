@@ -12,6 +12,7 @@ import ProjectDetail from './pages/ProjectDetail';
 import ClientPortal from './pages/ClientPortal';
 import Invoices from './pages/Invoices';
 import Settings from './pages/Settings';
+import Clients from './pages/Clients';
 
 function RootRedirect() {
   const { user, loading, isAgency, isClient } = useAuth();
@@ -51,6 +52,7 @@ function App() {
           <Route path="/projects/:id" element={<ProjectDetail />} />
           <Route path="/invoices" element={<Invoices />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/clients" element={<Clients />} />
         </Route>
 
         {/* ── Client routes wrapped in ClientLayout ── */}
