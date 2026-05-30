@@ -1,22 +1,62 @@
-import * as React from "react"
+import React from 'react';
 
-import { cn } from "@/lib/utils"
-
-function Input({
-  className,
-  type,
+export const Input = React.forwardRef(({
+  label,
+  id,
+  type = 'text',
+  placeholder = '',
+  iconLeft,
+  iconRight,
+  error,
+  className = '',
+  required = false,
   ...props
-}) {
+}, ref) => {
   return (
-    <input
-      type={type}
-      data-slot="input"
-      className={cn(
-        "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40",
-        className
+    <div className="space-y-2 w-full">
+      {label && (
+        <label
+          htmlFor={id}
+          className="block font-label-sm text-label-sm text-on-surface select-none"
+        >
+          {label} {required && <span className="text-error">*</span>}
+        </label>
       )}
-      {...props} />
+      <div className="relative">
+        {iconLeft && (
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant pointer-events-none select-none">
+            {iconLeft}
+          </span>
+        )}
+        <input
+          ref={ref}
+          type={type}
+          id={id}
+          required={required}
+          placeholder={placeholder}
+          className={`
+            w-full py-3 bg-surface-bright border border-outline-variant text-on-surface font-body-md text-body-md 
+            focus:border-primary focus:ring-0 focus:outline-none transition-colors duration-150 rounded-DEFAULT
+            ${iconLeft ? 'pl-10' : 'pl-4'}
+            ${iconRight ? 'pr-10' : 'pr-4'}
+            ${error ? 'border-error focus:border-error' : 'border-outline-variant'}
+            ${className}
+          `}
+          {...props}
+        />
+        {iconRight && (
+          <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-outline-variant pointer-events-none select-none">
+            {iconRight}
+          </span>
+        )}
+      </div>
+      {error && (
+        <p className="font-label-sm text-label-sm text-error mt-1">{error}</p>
+      )}
+    </div>
   );
-}
+});
 
-export { Input }
+Input.displayName = 'Input';
+
+export default Input;
